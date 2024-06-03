@@ -17,7 +17,7 @@ export async function run(provider: NetworkProvider) {
             owner,
             newContent, {
                 $$type: "RoyaltyParams",
-                numerator: 10n,
+                numerator: 1n,
                 denominator: 1000n,
                 destination: owner,
             }

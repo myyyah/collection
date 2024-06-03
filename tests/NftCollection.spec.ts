@@ -1,5 +1,5 @@
 import { Blockchain, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { toNano } from '@ton/core';
+import { toNano, beginCell } from '@ton/core';
 import { NftCollection } from '../wrappers/NftCollection';
 import '@ton/test-utils';
 
@@ -8,25 +8,34 @@ describe('NftCollection', () => {
     let deployer: SandboxContract<TreasuryContract>;
     let nftCollection: SandboxContract<NftCollection>;
 
+    const OFFCHAIN_CONTENT_PREFIX = 0x01;
+    const string_first = "https://s.getgems.io/nft-staging/c/628f6ab8077060a7a8d52d63/"; // Change to the content URL you prepared
+    let newContent = beginCell().storeInt(OFFCHAIN_CONTENT_PREFIX, 8).storeStringRefTail(string_first).endCell();
+
     beforeEach(async () => {
         blockchain = await Blockchain.create();
-
-        nftCollection = blockchain.openContract(await NftCollection.fromInit());
-
         deployer = await blockchain.treasury('deployer');
 
-        const deployResult = await nftCollection.send(
-            deployer.getSender(),
-            {
-                value: toNano('0.05'),
-            },
-            {
-                $$type: 'Deploy',
-                queryId: 0n,
-            }
+        nftCollection = blockchain.openContract(
+            await NftCollection.fromInit(
+                deployer.address,
+                newContent, {
+                    $$type: "RoyaltyParams",
+                    numerator: 10n,
+                    denominator: 1000n,
+                    destination: deployer.address,
+                }
+            )
         );
 
-        expect(deployResult.transactions).toHaveTransaction({
+        const deploy_result = await nftCollection.send(
+            deployer.getSender(),
+            {
+                value: toNano(1)
+            },
+            "Mint"
+        );
+        expect(deploy_result.transactions).toHaveTransaction({
             from: deployer.address,
             to: nftCollection.address,
             deploy: true,
@@ -34,8 +43,19 @@ describe('NftCollection', () => {
         });
     });
 
-    it('should deploy', async () => {
-        // the check is done inside beforeEach
-        // blockchain and nftCollection are ready to use
+    it("Test", async () => {
+        console.log("Next IndexID: " + (await nftCollection.getGetCollectionData()).next_item_index);
+        console.log("Collection Address: " + nftCollection.address);
+    });
+
+    it("should deploy correctly", async () => {
+        const deploy_result = await nftCollection.send(deployer.getSender(), { value: toNano(1) }, "Mint"); // Send Mint Transaction
+        expect(deploy_result.transactions).toHaveTransaction({
+            from: deployer.address,
+            to: nftCollection.address,
+            success: true,
+        });
+
+        console.log("Next IndexID: " + (await nftCollection.getGetCollectionData()).next_item_index);
     });
 });

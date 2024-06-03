@@ -1,22 +1,37 @@
-import { toNano } from '@ton/core';
+import { beginCell, toNano, Address } from '@ton/core';
 import { NftCollection } from '../wrappers/NftCollection';
 import { NetworkProvider } from '@ton/blueprint';
 
 export async function run(provider: NetworkProvider) {
-    const nftCollection = provider.open(await NftCollection.fromInit());
+    const OFFCHAIN_CONTENT_PREFIX = 0x01;
+    const string_first = "https://s.getgems.io/nft-staging/c/628f6ab8077060a7a8d52d63/"; // Change to the content URL you prepared
+    let newContent = beginCell().storeInt(OFFCHAIN_CONTENT_PREFIX, 8).storeStringRefTail(string_first).endCell();
 
-    await nftCollection.send(
-        provider.sender(),
-        {
-            value: toNano('0.05'),
-        },
-        {
-            $$type: 'Deploy',
-            queryId: 0n,
-        }
+    // ===== Parameters =====
+    // Replace owner with your address (if you use deeplink)
+    let owner = provider.sender().address!;
+
+    let collection = provider.open(
+        await NftCollection.fromInit(
+            owner,
+            newContent, {
+                $$type: "RoyaltyParams",
+                numerator: 10n,
+                denominator: 1000n,
+                destination: owner,
+            }
+        )
     );
 
-    await provider.waitForDeploy(nftCollection.address);
+    // Do deploy
+    await collection.send(
+        provider.sender(),
+        {
+            value: toNano("0.1")
+        },
+        "Mint"
+    );
+    await provider.waitForDeploy(collection.address);
 
-    // run methods on `nftCollection`
+    // run methods on `collection`
 }

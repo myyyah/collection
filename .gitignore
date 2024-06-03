@@ -3,3 +3,7 @@ temp
 build
 dist
 .DS_Store
+help
+project.env
+scripts/utils
+scripts/contract.deploy.ts
